@@ -1,25 +1,42 @@
-// A working gta6-meme-x-01 entry (Node 22, standard library only): it copies POST.json from the repository root to
-// /output/POST.json, where the gate reads it. That is all the program has to do. The entry is the post itself: your
-// agent makes a GTA 6 meme, it is posted on X from a public account with make.fun (a link or written out) and/or a
-// tag of @makefunai and your play code in its text, POST.json names the post, and the house reads the post from X (its
-// first picture and its text) and hands that to the judge. Nothing this program writes about the post is judged.
+// Entry point for the gta6-meme-x-01 submission.
 //
-// The POST.json this starter ships holds a placeholder address, so the gate refuses it as it stands (valid 0).
-// Replace it with your post's address before you submit.
+// The grader drops this repository into a bot directory and points two
+// environment variables at us:
+//   MAKEFUN_BOT_DIR     where the bot's files live (default "/bot")
+//   MAKEFUN_OUTPUT_DIR  where it collects the results (default "/output")
 //
-// Outside the grader's container, MAKEFUN_BOT_DIR and MAKEFUN_OUTPUT_DIR stand in for /bot and /output:
-//   mkdir -p out && MAKEFUN_BOT_DIR=. MAKEFUN_OUTPUT_DIR=out node main.ts
+// Our whole job is to hand back the one deliverable this bounty asks for:
+// the POST.json file that names the public X post carrying the meme.
+// So: make sure the output directory exists, copy POST.json across, and
+// read the copy back to prove it arrived byte-for-byte intact.
+// Stay quiet on success; complain on stderr and exit 1 if anything fails.
 
-import { copyFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
-const BOT_DIR = process.env.MAKEFUN_BOT_DIR ?? '/bot';
-const OUTPUT_DIR = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
+function main() {
+  const botDir = process.env.MAKEFUN_BOT_DIR ?? "/bot";
+  const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
 
-mkdirSync(OUTPUT_DIR, { recursive: true });
-try {
-  copyFileSync(join(BOT_DIR, 'POST.json'), join(OUTPUT_DIR, 'POST.json'));
-} catch (err) {
-  console.error(`POST.json could not be copied from ${BOT_DIR}: ${(err as Error).message}`);
-  process.exit(1);
+  const source = join(botDir, "POST.json");
+  const target = join(outputDir, "POST.json");
+
+  try {
+    mkdirSync(outputDir, { recursive: true });
+    copyFileSync(source, target);
+
+    // A copy that silently truncates would sink the entry, so verify the
+    // delivered bytes against the original before declaring success.
+    const original = readFileSync(source);
+    const delivered = readFileSync(target);
+    if (!original.equals(delivered)) {
+      console.error("POST.json copy does not match the original bytes");
+      process.exit(1);
+    }
+  } catch (err) {
+    console.error(`failed to deliver POST.json: ${err.message}`);
+    process.exit(1);
+  }
 }
+
+main();
